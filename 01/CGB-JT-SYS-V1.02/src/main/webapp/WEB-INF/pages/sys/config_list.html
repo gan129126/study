@@ -1,0 +1,237 @@
+<div class="row">
+	<div class="col-xs-12">
+		<div class="box">
+			<div class="box-header">
+				<h3 class="box-title">配置管理</h3>
+
+				<div class="box-tools">
+					<div class="input-group input-group-sm" style="width: 350px;">
+						<input type="text" name="table_search" id="searchNameId"
+							class="form-control pull-right" placeholder="参数名">
+					
+						<div class="input-group-btn">
+							<button type="button" class="btn btn-default btn-search">
+                                <i class="fa fa-search"></i>
+							</button>
+							
+							<button type="button" 
+							class="btn btn-default btn-delete">删除</button>
+							<button type="button" class="btn btn-default btn-add">添加</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<!-- /.box-header -->
+			<div class="box-body table-responsive no-padding">
+				<form>
+				  <table class="table table-hover">
+					<thead>
+						<tr>
+							<th><input type="checkbox" id="checkAll">全选</th>
+							<th>参数名</th>
+							<th>参数值</th>
+							<th>创建日期</th>
+							<th>修改日期</th>
+							<th>操作</th>
+						</tr>
+					</thead>
+					<tbody id="tbodyId">
+					</tbody>
+				  </table>
+				</form>
+			</div>
+			<!-- /.box-body -->
+			<div id="pageId" class="box-footer clearfix">
+            </div>
+		</div>
+		<!-- /.box -->
+	</div>
+</div>
+<script type="text/javascript">
+    $(function(){
+      $("#pageId").load("doPageUI.do",doGetObjects);
+      //查询按钮事件注册
+      $(".input-group-btn")
+      .on("click",".btn-search",doQueryObjects)
+      .on("click",".btn-delete",doDeleteObjects)
+      .on("click",".btn-add",doShowEditDialog);
+      
+       $("thead").on("change","#checkAll",doCheckAll);
+       $("tbody").on("change",".cBox",doChangeCheckAllState);
+       
+       $("#tbodyId")
+	   .on("click",".btn-update",doShowEditDialog);
+    });
+    //显示模态框(用于加载编辑页面)
+    function doShowEditDialog(){
+    	//定义编辑页面对应的url
+    	var url="config/doConfigEditUI.do";
+    	//定义编辑页面的标题
+    	var title;
+    	if($(this).hasClass("btn-add")){
+    		title="添加配置信息";
+    	}else{
+    		title="修改配置信息"
+    		//获取当前行记录
+    		var rowData=
+    	    $(this).parents("tr").data("rowData");
+    		//将数据绑定在模态框上(编辑页面方便获取)
+    		$("#myModal").data("rowData",rowData);
+    	}
+    	//在模态框的modal-body位置异步加载页面
+    	$("#myModal .modal-body")
+    	.load(url,function(){
+    		//设置模态框标题
+    		$("#myModalLabel").html(title);
+    		//显示模态框
+    		$("#myModal").modal("show")
+    	});
+    }
+    //处理tbody中所有checkbox对象的点击事件
+    function doChangeCheckAllState(){
+    	//1.指定变量并赋予值为true(假定为选中状态)
+    	var flag=true;
+    	//2.获取tbody中所有checkbox对象
+    	//的checked属性值并与flag值进行与操作
+    	$("tbody input[type=checkbox]")
+    	.each(function(){
+    		flag=flag&&$(this).prop("checked");
+    	});
+    	//3.设置thead中全选checkbox对象的checked属性值
+    	$("#checkAll").prop("checked",flag);
+    }
+    
+    //处理全选checkbox对象的点击事件
+    function doCheckAll(){
+      //1.获取thead中全选checkbox对象的状态
+      var flag=$(this).prop("checked");//所有checkbox都默认有checked属性
+      //2.让tbody中checkbox的状态同步与thead中全选checbox的状态
+      /* $("tbody input[type=checkbox]")
+      .each(function(){
+    	  $(this).prop("checked",flag);
+      }); */
+      $("tbody input[type=checkbox]")
+      .prop("checked",flag);
+    }
+   
+    //处理删除按钮的点击事件
+    function doDeleteObjects(){
+       //debugger
+       //1.获取用户选中的记录id
+       var ids=doGetCheckedIds();
+       //2.对值进行验证(判定是否有选中)
+       if(!ids||ids.length==0){
+    	  alert("请先选中");
+    	  return;
+       }
+       //3.异步提交删除请求
+       //3.1 请求参数
+       //var params={"ids":ids.toString()};//ids=4,5,6,7
+       //3.2 请求url
+       var url="config/doDeleteObjects/"+ids.toString()+".do";
+       //3.3 异步post请求
+       $.post(url,function(result){
+    	   console.log(result);//假如是json串,可以将串手动转换为对象
+    	   if(result.state==1){
+    		  alert(result.message);
+    		  doGetObjects();
+    	   }else{
+    		  alert(result.message);
+    	   }
+       });
+    }
+    /**获取选中的id值*/
+    function doGetCheckedIds(){
+    	//1.定义数组(存储选中的id值)
+    	var idsArray=[];//new Array();
+    	//2.获取tbody中所有input类型为checkbox的对象
+    	$("tbody input[type=checkbox]")
+    	//3.迭代所有的checkbox对象,
+    	//并将选中的checkbox对象的值存储到数组
+    	.each(function(){
+    		if($(this).prop("checked")){
+    		   idsArray.push($(this).val())
+    		}
+    	})
+    	//4.返回数组
+    	return idsArray;
+    }
+    //定义查询事件处理函数
+    function doQueryObjects(){
+    	//1.设置当前页码值为1
+    	$("#pageId").data("pageCurrent",1);
+    	//2.依据查询条件执行查询操作
+    	doGetObjects();//方法重用
+    }
+    
+    function doGetObjects(){
+        //console.log("doGetObjects");
+        //1.请求参数(params)
+        var pageCurrent=$("#pageId").data("pageCurrent");
+        if(!pageCurrent)pageCurrent=1;
+        //var params="pagecurrent=1";
+        var params={"pageCurrent":pageCurrent};
+        //获取搜索框的值(查询时)
+        var searchName=$("#searchNameId").val();
+        //假如文本框有值,则将值添加到请求参数中
+        if(searchName)params.name=searchName;
+        //2.请求资源路径(url)
+        var url="config/doFindPageObjects.do";
+        //3.发起异步请求(ajax 请求)
+        /* $.getJSON(url,params,function(result){
+        	doHandleResponse(result);
+        }) */
+        $.getJSON(url,params,doHandleResponseResult);
+    }
+    //处理服务端的响应结果(JsonResult-->Json String--> Json Object-->result)
+    function doHandleResponseResult(result){
+    	console.log(result);
+    	if(result.state==1){
+    	  //初始化当前页的记录信息
+    	  doSetTableBodyRows(result.data.records);
+    	  //初始化当前页的页码信息
+    	  doSetPagination(result.data)
+    	}else{
+    	  alert(result.message);
+    	}
+    };
+    //初始化当前页的记录信息
+    function doSetTableBodyRows(records){
+    	//1.获取tbody对象,并清空内容
+    	var tBody=$("#tbodyId");
+    	tBody.empty();
+    	//2.迭代记录集并将数据追加到tbody中
+    	for(var i in records){
+    	//2.1 创建tr对象
+    	var tr=$("<tr></tr>");
+    	//绑定当前行数据到tr对象上(在修改时需要)
+    	tr.data("rowData",records[i])
+    	//2.2 创建tds对象
+    	var tds=doCreateTds(records[i]);
+    	//2.3 将tds追加到tr中
+    	tr.append(tds);
+    	//2.4 将tr追加到tbody中
+    	tBody.append(tr);
+    	}
+    }
+    function doCreateTds(row){
+ 	   var tds="<td><input type='checkbox' class='cBox' name='cItem' value='"+row.id+"'></td>"+
+ 		   "<td>"+row.name+"</td>"+
+ 		   "<td>"+row.value+"</td>"+
+ 		   "<td>"+new Date(row.createdTime).toLocaleDateString()+"</td>"+
+ 		   "<td>"+new Date(row.modifiedTime).toLocaleDateString()+"</td>"+
+           "<td><button type='button' class='btn btn-default btn-update'>update</button></td>";
+ 	   return tds;
+    }
+</script>
+
+
+
+
+
+
+
+
+
+
+
